@@ -276,17 +276,26 @@ EOF
 }
 
 setupNFSShare() {
+  echo "Installing NFS on host"
   sudo apt-get install -y nfs-kernel-server
   echo "$HOME/work *(rw,async,no_subtree_check,anonuid=$(id -u),anongid=$(id -g))" | sudo tee -a /etc/exports
   sudo exportfs -a
 
-  echo "Configuring NFS"
-
-  ssh "$osname" sh <<EOF
-mount -F nfs 192.168.122.1:$HOME/work $HOME/work/
+  if [ -e "hooks/onRunNFS.sh" ] && ssh "$osname" env "RUNNER_HOME=$HOME" sh <hooks/onRunNFS.sh; then
+    echo "OK";
+  elif [ "$VM_NFS_CMD" ]; then
+    echo "Configuring NFS in VM"
+    ssh "$osname" sh <<EOF
+$VM_NFS_CMD
 EOF
-
-  echo "Done configuring NFS"
+    echo "Done with NFS"
+  else
+    echo "Configuring NFS in VM with default command"
+    ssh "$osname" sh <<EOF
+mount 192.168.122.1:$HOME/work \$HOME/work
+EOF
+    echo "Done with NFS"
+  fi
 }
 
 
